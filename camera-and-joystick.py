@@ -1,147 +1,195 @@
-import pygame
+"""
 import cv2
-import threading
+import pygame
 
-# Definimos algunos colores
-NEGRO = (0, 0, 0)
-BLANCO = (255, 255, 255)
-
-class TextPrint(object):
-    """Esta es una sencilla clase que nos ayudará a imprimir sobre la pantalla."""
-    
-    def __init__(self):
-        self.reset()
-        self.font = pygame.font.Font(None, 20)
-    
-    def print(self, mi_pantalla, text_string):
-        textBitmap = self.font.render(text_string, True, NEGRO)
-        mi_pantalla.blit(textBitmap, [self.x, self.y])
-        self.y += self.line_height
-    
-    def reset(self):
-        self.x = 10
-        self.y = 10
-        self.line_height = 15
-    
-    def indent(self):
-        self.x += 10
-    
-    def unindent(self):
-        self.x -= 10
-
-# Inicializa pygame y la ventana
+# Inicializar pygame y el joystick
 pygame.init()
+pygame.joystick.init()
 
-# Establecemos el largo y alto de la pantalla
+# Verificar si hay joysticks/gamepads conectados
+if pygame.joystick.get_count() == 0:
+    print("No se detectó ningún joystick")
+    exit()
+
+# Inicializar el primer joystick
+joystick = pygame.joystick.Joystick(0)
+joystick.init()
+
+# Variables de control
+camara_activa = False
+cap = None
+
+def abrir_camara():
+    global cap, camara_activa
+    if not camara_activa:
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("No se puede abrir la cámara")
+            return False
+        camara_activa = True
+        return True
+    return False
+
+def cerrar_camara():
+    global cap, camara_activa
+    if camara_activa:
+        cap.release()
+        cv2.destroyAllWindows()
+        camara_activa = False
+
+# Bucle principal
+while True:
+    # Procesar eventos de pygame
+    for evento in pygame.event.get():
+        if evento.type == pygame.JOYBUTTONDOWN:
+            # Botón 2 para abrir la cámara
+            if joystick.get_button(2):
+                if not camara_activa:
+                    abrir_camara()
+            
+            # Botón 0 para cerrar la cámara
+            if joystick.get_button(0):
+                if camara_activa:
+                    cerrar_camara()
+
+    # Si la cámara está activa, mostrar el video
+    if camara_activa:
+        ret, frame = cap.read()
+        if not ret:
+            print("No se pudo recibir frame (stream finalizado)")
+            cerrar_camara()
+            continue
+
+        cv2.imshow('Real-Time Video', frame)
+
+        # Verificar si se presiona 'q' para salir
+        if cv2.waitKey(1) == ord('q'):
+            break
+
+# Limpieza final
+cerrar_camara()
+pygame.quit()
+
+"""
+import cv2
+import pygame
+
+# Inicializar pygame y configurar la pantalla
+pygame.init()
+pygame.joystick.init()
 dimensiones = [500, 700]
 pantalla = pygame.display.set_mode(dimensiones)
 pygame.display.set_caption("Control de Joystick y Cámara")
 
-# Inicializa el joystick
-pygame.joystick.init()
+# Colores
+NEGRO = (0, 0, 0)
+BLANCO = (255, 255, 255)
 
-# Para gestionar el refresco de pantalla
+# Clase para imprimir texto en pantalla
+class TextPrint:
+    def __init__(self):
+        self.reset()
+        self.font = pygame.font.Font(None, 25)
+
+    def print(self, pantalla, texto):
+        text_bitmap = self.font.render(texto, True, NEGRO)
+        pantalla.blit(text_bitmap, [self.x, self.y])
+        self.y += self.line_height
+
+    def reset(self):
+        self.x = 10
+        self.y = 10
+        self.line_height = 30
+
+# Verificar joystick
+if pygame.joystick.get_count() == 0:
+    print("No se detectó ningún joystick")
+    exit()
+
+joystick = pygame.joystick.Joystick(0)
+joystick.init()
+
+# Variables de control
+camara_activa = False
+cap = None
+text_print = TextPrint()
 reloj = pygame.time.Clock()
 
-# Para imprimir texto
-text_print = TextPrint()
-
-# Diccionario de nombres personalizados para los botones
-nombres_botones = {
-    0: "Botón X",
-    2: "Botón Cuadrado",
-    # Agrega otros botones si es necesario
-}
-
-# Variables para controlar la cámara
-camara_abierta = False
-cap = None
-video_thread = None
-
-def video_loop():
-    global cap, camara_abierta
-    while camara_abierta:
-        ret, frame = cap.read()
-        if ret:
-            cv2.imshow('Real-Time Video', frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-    cap.release()
-    cv2.destroyAllWindows()
-
-# Función para abrir la cámara
 def abrir_camara():
-    global cap, camara_abierta, video_thread
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("No se puede abrir la cámara")
-    else:
-        camara_abierta = True
-        video_thread = threading.Thread(target=video_loop)
-        video_thread.start()
-        print("Cámara abierta")
+    global cap, camara_activa
+    if not camara_activa:
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("No se puede abrir la cámara")
+            return False
+        camara_activa = True
+        return True
+    return False
 
-# Función para cerrar la cámara
 def cerrar_camara():
-    global camara_abierta
-    camara_abierta = False
-    if video_thread is not None:
-        video_thread.join()
-    print("Cámara cerrada")
+    global cap, camara_activa
+    if camara_activa:
+        cap.release()
+        cv2.destroyAllWindows()
+        camara_activa = False
 
-# Bucle principal del programa
+# Bucle principal
 hecho = False
 while not hecho:
+    # Procesar eventos
     for evento in pygame.event.get():
         if evento.type == pygame.QUIT:
             hecho = True
-        
-        # Verifica si un botón fue presionado para abrir la cámara
-        if evento.type == pygame.JOYBUTTONDOWN:
-            print(f"Botón presionado: {evento.button}")  # Agregar declaración de impresión
-            # Si el botón Cuadrado (2) fue presionado, abrir la cámara
-            if evento.button == 2 and not camara_abierta:
-                abrir_camara()
-            # Si el botón X (0) fue presionado, cerrar la cámara
-            elif evento.button == 0 and camara_abierta:
-                cerrar_camara()
-    
-    # Limpiamos la pantalla con color blanco
+        elif evento.type == pygame.JOYBUTTONDOWN:
+            if joystick.get_button(2):
+                if not camara_activa:
+                    abrir_camara()
+            if joystick.get_button(0):
+                if camara_activa:
+                    cerrar_camara()
+
+    # Limpiar pantalla
     pantalla.fill(BLANCO)
     text_print.reset()
 
-    # Imprime el número de joysticks conectados
-    joystick_count = pygame.joystick.get_count()
-    text_print.print(pantalla, "Número de joysticks: {}".format(joystick_count))
-    text_print.indent()
+    # Obtener y mostrar datos del joystick
+    # Botones
+    text_print.print(pantalla, f"Joystick: {joystick.get_name()}")
+    text_print.print(pantalla, f"Número de botones: {joystick.get_numbuttons()}")
+    
+    for i in range(joystick.get_numbuttons()):
+        text_print.print(pantalla, f"Botón {i}: {joystick.get_button(i)}")
 
-    # Para cada joystick
-    for i in range(joystick_count):
-        joystick = pygame.joystick.Joystick(i)
-        joystick.init()
-        text_print.print(pantalla, "Joystick {}".format(i))
-        text_print.indent()
+    # Ejes
+    text_print.print(pantalla, f"Número de ejes: {joystick.get_numaxes()}")
+    for i in range(joystick.get_numaxes()):
+        text_print.print(pantalla, f"Eje {i}: {joystick.get_axis(i):.6f}")
 
-        # Obtiene el número de botones y verifica si son presionados
-        botones = joystick.get_numbuttons()
-        text_print.print(pantalla, "Número de botones: {}".format(botones))
-        text_print.indent()
+    # Hats (D-pad)
+    text_print.print(pantalla, f"Número de hats: {joystick.get_numhats()}")
+    for i in range(joystick.get_numhats()):
+        text_print.print(pantalla, f"Hat {i}: {joystick.get_hat(i)}")
 
-        for i in range(botones):
-            boton = joystick.get_button(i)
-            nombre_boton = nombres_botones.get(i, f"Botón {i}")
-            text_print.print(pantalla, "{} valor: {}".format(nombre_boton, boton))
-        text_print.unindent()
-        text_print.unindent()
+    # Estado de la cámara
+    text_print.print(pantalla, f"Cámara activa: {camara_activa}")
 
-    # Actualizamos la pantalla
+    # Actualizar pantalla
     pygame.display.flip()
 
-    # Limitamos a 60 fotogramas por segundo
+    # Si la cámara está activa, mostrar el video
+    if camara_activa:
+        ret, frame = cap.read()
+        if not ret:
+            print("No se pudo recibir frame")
+            cerrar_camara()
+            continue
+
+        cv2.imshow('Real-Time Video', frame)
+        if cv2.waitKey(1) == ord('q'):
+            hecho = True
+
     reloj.tick(60)
 
-# Cerrar la cámara si está abierta
-if camara_abierta:
-    cerrar_camara()
-
+# Limpieza final
+cerrar_camara()
 pygame.quit()
