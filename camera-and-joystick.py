@@ -1,83 +1,11 @@
-"""
 import cv2
 import pygame
-
-# Inicializar pygame y el joystick
-pygame.init()
-pygame.joystick.init()
-
-# Verificar si hay joysticks/gamepads conectados
-if pygame.joystick.get_count() == 0:
-    print("No se detectó ningún joystick")
-    exit()
-
-# Inicializar el primer joystick
-joystick = pygame.joystick.Joystick(0)
-joystick.init()
-
-# Variables de control
-camara_activa = False
-cap = None
-
-def abrir_camara():
-    global cap, camara_activa
-    if not camara_activa:
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            print("No se puede abrir la cámara")
-            return False
-        camara_activa = True
-        return True
-    return False
-
-def cerrar_camara():
-    global cap, camara_activa
-    if camara_activa:
-        cap.release()
-        cv2.destroyAllWindows()
-        camara_activa = False
-
-# Bucle principal
-while True:
-    # Procesar eventos de pygame
-    for evento in pygame.event.get():
-        if evento.type == pygame.JOYBUTTONDOWN:
-            # Botón 2 para abrir la cámara
-            if joystick.get_button(2):
-                if not camara_activa:
-                    abrir_camara()
-            
-            # Botón 0 para cerrar la cámara
-            if joystick.get_button(0):
-                if camara_activa:
-                    cerrar_camara()
-
-    # Si la cámara está activa, mostrar el video
-    if camara_activa:
-        ret, frame = cap.read()
-        if not ret:
-            print("No se pudo recibir frame (stream finalizado)")
-            cerrar_camara()
-            continue
-
-        cv2.imshow('Real-Time Video', frame)
-
-        # Verificar si se presiona 'q' para salir
-        if cv2.waitKey(1) == ord('q'):
-            break
-
-# Limpieza final
-cerrar_camara()
-pygame.quit()
-
-"""
-import cv2
-import pygame
+import numpy as np
 
 # Inicializar pygame y configurar la pantalla
 pygame.init()
 pygame.joystick.init()
-dimensiones = [500, 700]
+dimensiones = [1280, 920]  # Ventana más grande para acomodar todo
 pantalla = pygame.display.set_mode(dimensiones)
 pygame.display.set_caption("Control de Joystick y Cámara")
 
@@ -97,7 +25,7 @@ class TextPrint:
         self.y += self.line_height
 
     def reset(self):
-        self.x = 10
+        self.x = 650  # Movemos el texto a la derecha para dejar espacio para la cámara
         self.y = 10
         self.line_height = 30
 
@@ -130,8 +58,14 @@ def cerrar_camara():
     global cap, camara_activa
     if camara_activa:
         cap.release()
-        cv2.destroyAllWindows()
         camara_activa = False
+
+def frame_a_surface(frame):
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Convertir BGR a RGB
+    frame = cv2.resize(frame, (640, 480))  # Redimensionar a un tamaño fijo
+    frame = np.rot90(frame)  # Rotar si es necesario
+    frame = pygame.surfarray.make_surface(frame)
+    return frame
 
 # Bucle principal
 hecho = False
@@ -152,8 +86,19 @@ while not hecho:
     pantalla.fill(BLANCO)
     text_print.reset()
 
+    # Mostrar imagen de la cámara si está activa
+    if camara_activa:
+        ret, frame = cap.read()
+        if ret:
+            # Convertir el frame de OpenCV a surface de Pygame
+            frame_surface = frame_a_surface(frame)
+            # Mostrar en la esquina superior izquierda
+            pantalla.blit(frame_surface, (0, 0))
+        else:
+            print("No se pudo recibir frame")
+            cerrar_camara()
+
     # Obtener y mostrar datos del joystick
-    # Botones
     text_print.print(pantalla, f"Joystick: {joystick.get_name()}")
     text_print.print(pantalla, f"Número de botones: {joystick.get_numbuttons()}")
     
@@ -172,22 +117,11 @@ while not hecho:
 
     # Estado de la cámara
     text_print.print(pantalla, f"Cámara activa: {camara_activa}")
+    """text_print.print(pantalla, "Botón 2: Abrir cámara")
+    text_print.print(pantalla, "Botón 0: Cerrar cámara")"""
 
     # Actualizar pantalla
     pygame.display.flip()
-
-    # Si la cámara está activa, mostrar el video
-    if camara_activa:
-        ret, frame = cap.read()
-        if not ret:
-            print("No se pudo recibir frame")
-            cerrar_camara()
-            continue
-
-        cv2.imshow('Real-Time Video', frame)
-        if cv2.waitKey(1) == ord('q'):
-            hecho = True
-
     reloj.tick(60)
 
 # Limpieza final
