@@ -5,7 +5,7 @@ import numpy as np
 # Inicializar pygame y configurar la pantalla
 pygame.init()
 pygame.joystick.init()
-dimensiones = [1280, 920]  # Ventana más grande para acomodar todo
+dimensiones = [1920, 950]  # Ventana más grande para acomodar todo
 pantalla = pygame.display.set_mode(dimensiones)
 pygame.display.set_caption("Control de Joystick y Cámara")
 
@@ -47,6 +47,10 @@ def abrir_camara():
     global cap, camara_activa
     if not camara_activa:
         cap = cv2.VideoCapture(0)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        frame_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        frame_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         if not cap.isOpened():
             print("No se puede abrir la cámara")
             return False
@@ -62,7 +66,7 @@ def cerrar_camara():
 
 def frame_a_surface(frame):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Convertir BGR a RGB
-    frame = cv2.resize(frame, (640, 480))  # Redimensionar a un tamaño fijo
+    frame = cv2.resize(frame, (950, 475))  # Redimensionar a un tamaño fijo
     frame = np.rot90(frame)  # Rotar si es necesario
     frame = pygame.surfarray.make_surface(frame)
     return frame
@@ -83,7 +87,7 @@ while not hecho:
                     cerrar_camara()
 
     # Limpiar pantalla
-    pantalla.fill(BLANCO)
+    pantalla.fill(NEGRO)
     text_print.reset()
 
     # Mostrar imagen de la cámara si está activa
@@ -92,33 +96,16 @@ while not hecho:
         if ret:
             # Convertir el frame de OpenCV a surface de Pygame
             frame_surface = frame_a_surface(frame)
-            # Mostrar en la esquina superior izquierda
-            pantalla.blit(frame_surface, (0, 0))
+            # Mostrar la imagen en la parte izquierda
+            pantalla.blit(frame_surface, (10, 150))
+            # Mostrar la imagen duplicada en la parte derecha
+            pantalla.blit(frame_surface, (965, 150))
         else:
             print("No se pudo recibir frame")
             cerrar_camara()
 
-    # Obtener y mostrar datos del joystick
-    text_print.print(pantalla, f"Joystick: {joystick.get_name()}")
-    text_print.print(pantalla, f"Número de botones: {joystick.get_numbuttons()}")
-    
-    for i in range(joystick.get_numbuttons()):
-        text_print.print(pantalla, f"Botón {i}: {joystick.get_button(i)}")
-
-    # Ejes
-    text_print.print(pantalla, f"Número de ejes: {joystick.get_numaxes()}")
-    for i in range(joystick.get_numaxes()):
-        text_print.print(pantalla, f"Eje {i}: {joystick.get_axis(i):.6f}")
-
-    # Hats (D-pad)
-    text_print.print(pantalla, f"Número de hats: {joystick.get_numhats()}")
-    for i in range(joystick.get_numhats()):
-        text_print.print(pantalla, f"Hat {i}: {joystick.get_hat(i)}")
-
     # Estado de la cámara
     text_print.print(pantalla, f"Cámara activa: {camara_activa}")
-    """text_print.print(pantalla, "Botón 2: Abrir cámara")
-    text_print.print(pantalla, "Botón 0: Cerrar cámara")"""
 
     # Actualizar pantalla
     pygame.display.flip()
